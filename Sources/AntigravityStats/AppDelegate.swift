@@ -129,10 +129,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let center = NSPoint(x: rect.midX, y: rect.midY)
             let radius = (size - 2) / 2
 
-            // Background circle (dim)
+            // Background circle
             let bgPath = NSBezierPath(ovalIn: rect.insetBy(dx: 1, dy: 1))
-            NSColor.white.withAlphaComponent(0.15).setFill()
+            NSColor.white.withAlphaComponent(0.35).setFill()
             bgPath.fill()
+            NSColor.white.withAlphaComponent(0.6).setStroke()
+            bgPath.lineWidth = 0.75
+            bgPath.stroke()
 
             // Filled pie sector (white) — elapsed portion
             if elapsed > 0.01 {
