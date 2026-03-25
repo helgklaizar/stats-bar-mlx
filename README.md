@@ -1,4 +1,4 @@
-# 🚀 Antigravity Stats
+# 🚀 Antigravity Bar
 
 <p align="center">
   <img src="assets/icon.png" width="128" height="128" alt="Antigravity Stats Icon">
@@ -113,6 +113,16 @@ swift build
 │       ├── Info.plist               # App metadata
 │       └── AppIcon.icns             # App icon
 ```
+
+## 🛣 Roadmap
+
+| # | Task | Details |
+|---|------|--------|
+| 1 | **Adaptive polling** | Faster refresh when menu is open, slower in background (currently fixed 30s) |
+| 2 | **New model support** | Add quota rows & icons when Antigravity adds new models (currently: Flash, Pro, Claude) |
+| 3 | **Modern macOS APIs** | Audit and migrate deprecated AppKit APIs for macOS 14/15 |
+| 4 | **Daemon discovery stability** | Add timeout + retry logic when reading JSON from `~/.gemini/antigravity/daemon/` |
+| 5 | **Rename binary** | Rename `StellarBar` → `AntigravityBar` in `Package.swift` and `build-app.sh` |
 
 ## 📄 License
 
