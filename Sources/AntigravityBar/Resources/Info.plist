@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>Antigravity Stats</string>
+    <string>Antigravity Bar</string>
     <key>CFBundleDisplayName</key>
-    <string>Antigravity Stats</string>
+    <string>Antigravity Bar</string>
     <key>CFBundleIdentifier</key>
     <string>com.antigravity.stats</string>
     <key>CFBundleVersion</key>
@@ -15,7 +15,7 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleExecutable</key>
-    <string>AntigravityStats</string>
+    <string>AntigravityBar</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>LSUIElement</key>

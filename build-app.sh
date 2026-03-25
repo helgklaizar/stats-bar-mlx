@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-APP_NAME="AntigravityStats"
-DISPLAY_NAME="Antigravity Stats"
+APP_NAME="AntigravityBar"
+DISPLAY_NAME="Antigravity Bar"
 BUILD_DIR=".build/release"
 APP_DIR="$DISPLAY_NAME.app"
 
@@ -18,11 +18,11 @@ mkdir -p "$APP_DIR/Contents/Resources"
 cp "$BUILD_DIR/$APP_NAME" "$APP_DIR/Contents/MacOS/$APP_NAME"
 
 # Copy Info.plist
-cp "Sources/AntigravityStats/Resources/Info.plist" "$APP_DIR/Contents/Info.plist"
+cp "Sources/AntigravityBar/Resources/Info.plist" "$APP_DIR/Contents/Info.plist"
 
 # Copy icon
-if [ -f "Sources/AntigravityStats/Resources/AppIcon.icns" ]; then
-    cp "Sources/AntigravityStats/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
+if [ -f "Sources/AntigravityBar/Resources/AppIcon.icns" ]; then
+    cp "Sources/AntigravityBar/Resources/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
 fi
 
 # Sign ad-hoc (needed for SMAppService)

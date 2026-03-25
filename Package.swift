@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "AntigravityStats",
+    name: "AntigravityBar",
     platforms: [.macOS(.v13)],
     targets: [
         .executableTarget(
-            name: "AntigravityStats",
-            path: "Sources/AntigravityStats",
+            name: "AntigravityBar",
+            path: "Sources/AntigravityBar",
             exclude: ["Resources"]
         )
     ]
