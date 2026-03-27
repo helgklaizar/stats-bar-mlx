@@ -1,12 +1,12 @@
-# 🚀 Antigravity Bar
+# 🚀 Google Antigravity Bar
 
 <p align="center">
   <img src="assets/icon.png" width="128" height="128" alt="Antigravity Stats Icon">
 </p>
 
 <p align="center">
-  <strong>macOS menu bar companion for Antigravity IDE</strong><br>
-  Monitor quota usage, cache size, and access quick actions — all from your menu bar.
+  <strong>The macOS menu bar companion for Google Antigravity IDE</strong><br>
+  Monitor your AI quota usage, cache size, prevent context bloat, and access quick actions — all right from your macOS menu bar.
 </p>
 
 <p align="center">
@@ -22,14 +22,14 @@
 | Feature | Description |
 |---------|-------------|
 | 📊 **Quota Indicators** | Flash, Pro, Claude — color-coded percentages |
-| ⏱ **Timer Circles** | Pie-fill showing time until quota reset |
-| 💾 **Cache Size** | Colored by thresholds (🟢 <100MB, 🟡 <300MB, 🟠 <500MB, 🔴 >500MB) |
-| 🔌 **Quick Actions** | Rules, MCP, Allowlist, Restart LS, Reset Updater, Reload |
+| ⏱ **Timer Circles** | Pie-fill showing time until your Google Antigravity quota resets |
+| 💾 **Cache Size** | Colored by thresholds to stop context bloat (🟢 <100MB, 🟡 <300MB, 🟠 <500MB, 🔴 >500MB) |
+| 🔌 **Quick Actions** | Rules, MCP servers, Allowlist, Restart Language Server, Reset Updater, Reload |
 | 🧹 **Cleanup** | Clear Brain & Code Tracker with confirmation |
-| 💬 **New Chat** | Launch new Antigravity chat from menu |
-| 🧪 **Playground** | Open playground directory |
-| 🚀 **Launch at Login** | Toggle auto-start |
-| 🔴 **Offline Detection** | Shows "OFF" when daemon is not running |
+| 💬 **New Chat** | Launch an entirely fresh Google Antigravity chat from the menu |
+| 🧪 **Playground** | Open the playground directory |
+| 🚀 **Launch at Login** | Toggle auto-start transparently |
+| 🔴 **Offline Detection** | Shows "OFF" when the Google Antigravity daemon is not running |
 
 ## 📸 Preview
 
@@ -63,7 +63,7 @@ swift build
 ## 🔧 Requirements
 
 - **macOS 13.0+** (Ventura)
-- **Antigravity IDE** installed and running
+- **Google Antigravity IDE** installed and running
 - **Swift 6.0+** toolchain (for building from source)
 
 ## 🏗 Architecture
@@ -76,17 +76,17 @@ swift build
                    │ click
 ┌──────────────────▼──────────────────────────────┐
 │              Context Menu                        │
-│  ├─ Quota details (per model)                   │
+│  ├─ Quota details (per AI model)                │
 │  ├─ New Chat / Playground                       │
 │  ├─ Rules / MCP / Allowlist                     │
-│  ├─ Restart LS / Reset Updater / Reload         │
+│  ├─ Restart Server / Reset Updater / Reload     │
 │  ├─ Clear Brain / Code Tracker                  │
 │  ├─ Launch at Login toggle                      │
 │  └─ Quit                                        │
 └──────────────────┬──────────────────────────────┘
                    │
 ┌──────────────────▼──────────────────────────────┐
-│          AntigravityAPI                          │
+│          Google Antigravity API                  │
 │  ├─ Daemon discovery (~/.gemini/antigravity/)   │
 │  ├─ Connect/Protobuf quota fetch                │
 │  └─ Cache size calculation                      │
@@ -95,10 +95,10 @@ swift build
 
 ## 🔌 How It Works
 
-1. **Daemon Discovery** — reads JSON files from `~/.gemini/antigravity/daemon/` to find the active Language Server
-2. **Quota Fetch** — sends `GetUserStatus` request via Connect protocol to the local HTTP port
-3. **Polling** — refreshes data every 30 seconds
-4. **Cache Calculation** — sums `brain/` and `conversations/` directory sizes
+1. **Daemon Discovery** — reads JSON files from `~/.gemini/antigravity/daemon/` to find the active Language Server.
+2. **Quota Fetch** — sends a `GetUserStatus` request via Connect protocol to the local HTTP port.
+3. **Polling** — refreshes data every 30 seconds.
+4. **Cache Calculation** — sums `brain/` and `conversations/` directory sizes to monitor memory bloat.
 
 ## 📁 Project Structure
 
@@ -119,7 +119,7 @@ swift build
 | # | Task | Details |
 |---|------|--------|
 | 1 | **Adaptive polling** | Faster refresh when menu is open, slower in background (currently fixed 30s) |
-| 2 | **New model support** | Add quota rows & icons when Antigravity adds new models (currently: Flash, Pro, Claude) |
+| 2 | **New model support** | Add quota rows & icons when Google Antigravity adds new models |
 | 3 | **Modern macOS APIs** | Audit and migrate deprecated AppKit APIs for macOS 14/15 |
 | 4 | **Daemon discovery stability** | Add timeout + retry logic when reading JSON from `~/.gemini/antigravity/daemon/` |
 | 5 | **Rename binary** | Rename `StellarBar` → `AntigravityBar` in `Package.swift` and `build-app.sh` |
@@ -131,5 +131,5 @@ MIT — see [LICENSE](LICENSE)
 ---
 
 <p align="center">
-  Made with ⚡ for the Antigravity community
+  Made with ⚡ for the Google Antigravity community
 </p>
