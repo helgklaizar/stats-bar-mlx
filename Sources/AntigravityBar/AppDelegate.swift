@@ -3,12 +3,13 @@ import Foundation
 import ServiceManagement
 
 @MainActor
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private var pollTimer: Timer?
     private var lastQuota: QuotaData?
     private var daemonOnline = false
     private let api = AntigravityAPI.shared
+    private var isMenuOpen = false
 
     // Paths
     private let geminiDir = NSHomeDirectory() + "/.gemini"
@@ -29,7 +30,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Polling
 
-    private let normalInterval: TimeInterval = 30
+    private let backgroundInterval: TimeInterval = 60
+    private let activeInterval: TimeInterval = 5
     private let retryInterval: TimeInterval = 5
 
     private func startPolling() {
@@ -39,11 +41,33 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func scheduleNextPoll() {
         pollTimer?.invalidate()
-        let interval = daemonOnline ? normalInterval : retryInterval
-        pollTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
-            self?.fetchAndUpdate()
-            self?.scheduleNextPoll()
+        let interval: TimeInterval
+        if !daemonOnline {
+            interval = retryInterval
+        } else if isMenuOpen {
+            interval = activeInterval
+        } else {
+            interval = backgroundInterval
         }
+        pollTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.fetchAndUpdate()
+                self?.scheduleNextPoll()
+            }
+        }
+    }
+
+    // MARK: - NSMenuDelegate
+
+    func menuWillOpen(_ menu: NSMenu) {
+        isMenuOpen = true
+        fetchAndUpdate()
+        scheduleNextPoll()
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        isMenuOpen = false
+        scheduleNextPoll()
     }
 
     private func fetchAndUpdate() {
@@ -103,6 +127,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             Group(name: "Flash", keywords: ["flash"]),
             Group(name: "Pro", keywords: ["pro"]),
             Group(name: "Claude", keywords: ["claude", "sonnet", "opus"]),
+            Group(name: "O1", keywords: ["o1", "o3"]),
+            Group(name: "Gemma", keywords: ["gemma"])
         ]
 
         var result: [(name: String, pct: Int, secsLeft: Double)] = []
@@ -230,6 +256,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func showContextMenu() {
         let menu = NSMenu()
         menu.autoenablesItems = false
+        menu.delegate = self
 
         // Header with quota details
         if let quota = lastQuota {

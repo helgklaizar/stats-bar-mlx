@@ -23,10 +23,39 @@ struct QuotaData {
     let timestamp: Date
 }
 
+struct CascadeUserStatus: Decodable {
+    let userStatus: UserStatusContainer
+}
+
+struct UserStatusContainer: Decodable {
+    let cascadeModelConfigData: CascadeModelConfigData
+}
+
+struct CascadeModelConfigData: Decodable {
+    let clientModelConfigs: [ClientModelConfig]
+}
+
+struct ClientModelConfig: Decodable {
+    let label: String?
+    let quotaInfo: QuotaInfo?
+}
+
+struct QuotaInfo: Decodable {
+    let remainingFraction: Double?
+    let resetTime: String?
+}
+
 // MARK: - API
 
 class AntigravityAPI: @unchecked Sendable {
     @MainActor static let shared = AntigravityAPI()
+    
+    let env: SystemEnvironment
+    
+    init(env: SystemEnvironment = DefaultSystemEnvironment()) {
+        self.env = env
+    }
+
     private let daemonDir = URL(fileURLWithPath: NSHomeDirectory())
         .appendingPathComponent(".gemini/antigravity/daemon")
     private let brainDir = URL(fileURLWithPath: NSHomeDirectory())
@@ -162,40 +191,58 @@ class AntigravityAPI: @unchecked Sendable {
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["metadata": ["ideName": "antigravity"]])
 
         let semaphore = DispatchSemaphore(value: 0)
-        var reachable = false
+        final class ReachableStatus: @unchecked Sendable { var ok = false }
+        let status = ReachableStatus()
+        
         URLSession.shared.dataTask(with: request) { data, response, _ in
             if let http = response as? HTTPURLResponse, http.statusCode == 200 {
-                reachable = true
+                status.ok = true
             }
             semaphore.signal()
         }.resume()
         semaphore.wait()
-        return reachable
+        return status.ok
     }
 
     /// Fallback: original JSON file-based discovery
     private func findDaemonFromJSON() -> DaemonInfo? {
-        let fm = FileManager.default
-        guard let files = try? fm.contentsOfDirectory(
-            at: daemonDir,
-            includingPropertiesForKeys: [.contentModificationDateKey],
-            options: .skipsHiddenFiles
-        ) else { return nil }
+        for _ in 0..<3 {
+            guard let files = try? env.contentsOfDirectory(
+                at: daemonDir,
+                includingPropertiesForKeys: [.contentModificationDateKey],
+                options: .skipsHiddenFiles
+            ) else {
+                Thread.sleep(forTimeInterval: 0.5)
+                continue
+            }
 
-        let jsonFiles = files.filter { $0.pathExtension == "json" }
-        let sorted = jsonFiles.sorted {
-            let d1 = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
-            let d2 = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
-            return d1 > d2
-        }
-
-        for file in sorted {
-            if let data = try? Data(contentsOf: file),
-               let info = try? JSONDecoder().decode(DaemonInfo.self, from: data) {
-                if isHTTPReachable(port: info.httpPort, csrfToken: info.csrfToken) {
-                    return info
+            let jsonFiles = files.filter { $0.pathExtension == "json" }
+            
+            // Clean up stale JSONs (>2 mins)
+            let now = Date()
+            for file in jsonFiles {
+                if let attrs = try? env.attributesOfItem(atPath: file.path),
+                   let modDate = attrs[.modificationDate] as? Date,
+                   now.timeIntervalSince(modDate) > 120 {
+                    try? env.removeItem(at: file)
                 }
             }
+
+            let sorted = jsonFiles.sorted {
+                let d1 = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                let d2 = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+                return d1 > d2
+            }
+
+            for file in sorted {
+                if let data = try? env.readData(contentsOf: file),
+                   let info = try? JSONDecoder().decode(DaemonInfo.self, from: data) {
+                    if isHTTPReachable(port: info.httpPort, csrfToken: info.csrfToken) {
+                        return info
+                    }
+                }
+            }
+            Thread.sleep(forTimeInterval: 0.5)
         }
         return nil
     }
@@ -215,28 +262,25 @@ class AntigravityAPI: @unchecked Sendable {
 
         URLSession.shared.dataTask(with: request) { data, response, error in
             guard let data = data,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+                  let parsed = try? JSONDecoder().decode(CascadeUserStatus.self, from: data)
             else {
                 completion(nil)
                 return
             }
-            completion(self.parseQuota(json))
+            completion(self.parseQuota(parsed))
         }.resume()
     }
 
-    private func parseQuota(_ json: [String: Any]) -> QuotaData? {
-        guard let userStatus = json["userStatus"] as? [String: Any],
-              let cascadeData = userStatus["cascadeModelConfigData"] as? [String: Any],
-              let configs = cascadeData["clientModelConfigs"] as? [[String: Any]]
-        else { return nil }
+    private func parseQuota(_ parsed: CascadeUserStatus) -> QuotaData? {
+        let configs = parsed.userStatus.cascadeModelConfigData.clientModelConfigs
 
         let models: [ModelQuota] = configs.compactMap { config in
-            guard let quotaInfo = config["quotaInfo"] as? [String: Any],
-                  let label = config["label"] as? String
+            guard let quotaInfo = config.quotaInfo,
+                  let label = config.label
             else { return nil }
 
-            let remainingFraction = (quotaInfo["remainingFraction"] as? Double) ?? 0.0
-            let resetTimeStr = quotaInfo["resetTime"] as? String ?? ""
+            let remainingFraction = quotaInfo.remainingFraction ?? 0.0
+            let resetTimeStr = quotaInfo.resetTime ?? ""
             let resetDate = ISO8601DateFormatter().date(from: resetTimeStr) ?? Date()
             let secsLeft = max(0, resetDate.timeIntervalSinceNow)
             let timeStr = formatTime(Int(secsLeft * 1000))
@@ -269,33 +313,30 @@ class AntigravityAPI: @unchecked Sendable {
     // MARK: - Actions
 
     func clearCache() {
-        let fm = FileManager.default
         let dirsToClear = [brainDir, conversationsDir]
         for dir in dirsToClear {
-            guard let contents = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { continue }
+            guard let contents = try? env.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil, options: []) else { continue }
             for item in contents {
                 let name = item.lastPathComponent
                 if name == ".DS_Store" { continue }
-                try? fm.removeItem(at: item)
+                try? env.removeItem(at: item)
             }
         }
     }
 
     func clearBrain() {
-        let fm = FileManager.default
-        guard let contents = try? fm.contentsOfDirectory(at: brainDir, includingPropertiesForKeys: nil) else { return }
+        guard let contents = try? env.contentsOfDirectory(at: brainDir, includingPropertiesForKeys: nil, options: []) else { return }
         for item in contents {
             let name = item.lastPathComponent
             if name == ".DS_Store" { continue }
-            try? fm.removeItem(at: item)
+            try? env.removeItem(at: item)
         }
     }
 
     func clearCodeTracker() {
-        let fm = FileManager.default
-        guard let contents = try? fm.contentsOfDirectory(at: codeTrackerDir, includingPropertiesForKeys: nil) else { return }
+        guard let contents = try? env.contentsOfDirectory(at: codeTrackerDir, includingPropertiesForKeys: nil, options: []) else { return }
         for item in contents {
-            try? fm.removeItem(at: item)
+            try? env.removeItem(at: item)
         }
     }
 
@@ -320,8 +361,7 @@ class AntigravityAPI: @unchecked Sendable {
     }
 
     private func dirSize(_ dir: URL) -> Int64 {
-        let fm = FileManager.default
-        guard let enumerator = fm.enumerator(at: dir, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) else { return 0 }
+        guard let enumerator = env.enumerator(at: dir, includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) else { return 0 }
         var total: Int64 = 0
         for case let fileURL as URL in enumerator {
             if let vals = try? fileURL.resourceValues(forKeys: [.fileSizeKey]) {
