@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import Darwin
 
 // MARK: - Daemon Discovery
 
@@ -76,19 +77,17 @@ class AntigravityAPI: @unchecked Sendable {
         return findDaemonFromJSON()
     }
 
-    /// Parse running language_server process args to get csrf_token,
-    /// then find LISTEN ports and validate via HTTP
+    /// Parse running language_server process args natively to get csrf_token,
+    /// then find LISTEN ports using targeted lsof and validate via HTTP
     private func findDaemonFromProcess() -> DaemonInfo? {
         // 1. Get all language_server processes with csrf tokens
         let psInfo = findLanguageServerProcesses()
         guard !psInfo.isEmpty else { return nil }
 
-        // 2. Get all language_server LISTEN ports grouped by PID
-        let portsByPid = findAllLSListenPorts()
-
-        // 3. Try each process: match PID → ports → validate HTTP
+        // 2. Try each process: match PID → ports via lsof -p PID → validate HTTP
         for info in psInfo {
-            guard let ports = portsByPid[info.pid], !ports.isEmpty else { continue }
+            let ports = findListenPorts(forPID: info.pid)
+            guard !ports.isEmpty else { continue }
 
             // Try each port (sorted descending — HTTP is usually the second/higher port)
             let sortedPorts = ports.sorted(by: >)
@@ -111,72 +110,84 @@ class AntigravityAPI: @unchecked Sendable {
         let csrfToken: String
     }
 
-    /// Find all language_server_macos processes and extract PID + csrf_token
+    /// Find all language_server_macos processes and extract PID + csrf_token natively
     private func findLanguageServerProcesses() -> [LSProcessInfo] {
-        let ps = Process()
-        ps.launchPath = "/bin/ps"
-        ps.arguments = ["-eo", "pid,args"]
-        let pipe = Pipe()
-        ps.standardOutput = pipe
-        ps.standardError = FileHandle.nullDevice
-        guard (try? ps.run()) != nil else { return [] }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        ps.waitUntilExit()
-        guard let output = String(data: data, encoding: .utf8) else { return [] }
-
         var results: [LSProcessInfo] = []
-        for line in output.components(separatedBy: "\n") {
-            guard line.contains("language_server_macos"), !line.contains("grep") else { continue }
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            let parts = trimmed.split(separator: " ", maxSplits: 1)
-            guard parts.count == 2,
-                  let pid = Int(parts[0]),
-                  let token = extractArg("--csrf_token", from: String(parts[1]))
-            else { continue }
-            results.append(LSProcessInfo(pid: pid, csrfToken: token))
+        let maxPids = 2048
+        var pids = [pid_t](repeating: 0, count: maxPids)
+        let returnedBytes = proc_listpids(UInt32(PROC_ALL_PIDS), 0, &pids, Int32(maxPids * MemoryLayout<pid_t>.stride))
+        let numPids = Int(returnedBytes) / MemoryLayout<pid_t>.stride
+        
+        for i in 0..<numPids {
+            let pid = pids[i]
+            if pid <= 0 { continue }
+            
+            var pathBuffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+            let pathLen = proc_pidpath(pid, &pathBuffer, UInt32(pathBuffer.count))
+            if pathLen > 0 {
+                let path = String(cString: pathBuffer)
+                if path.contains("language_server_macos") {
+                    var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
+                    var size: Int = 0
+                    sysctl(&mib, UInt32(mib.count), nil, &size, nil, 0)
+                    if size > 0 {
+                        var buffer = [CChar](repeating: 0, count: size)
+                        if sysctl(&mib, UInt32(mib.count), &buffer, &size, nil, 0) == 0 {
+                            let argc = buffer.withUnsafeBufferPointer { ptr -> Int32 in
+                                ptr.baseAddress!.withMemoryRebound(to: Int32.self, capacity: 1) { $0.pointee }
+                            }
+                            var offset = MemoryLayout<Int32>.size
+                            while offset < buffer.count && buffer[offset] != 0 { offset += 1 }
+                            while offset < buffer.count && buffer[offset] == 0 { offset += 1 }
+                            
+                            var args = [String]()
+                            for _ in 0..<argc {
+                                let argStart = offset
+                                while offset < buffer.count && buffer[offset] != 0 { offset += 1 }
+                                args.append(String(cString: Array(buffer[argStart...offset])))
+                                offset += 1
+                            }
+                            
+                            if let tokenIdx = args.firstIndex(of: "--csrf_token"), tokenIdx + 1 < args.count {
+                                results.append(LSProcessInfo(pid: Int(pid), csrfToken: args[tokenIdx + 1]))
+                            }
+                        }
+                    }
+                }
+            }
         }
         return results
     }
 
-    private func extractArg(_ flag: String, from args: String) -> String? {
-        let parts = args.components(separatedBy: " ")
-        guard let idx = parts.firstIndex(of: flag), idx + 1 < parts.count else { return nil }
-        return parts[idx + 1]
-    }
-
-    /// Run lsof ONCE (no -p flag) and filter language_server lines by PID
-    private func findAllLSListenPorts() -> [Int: [Int]] {
+    /// Run targeted lsof for a specific PID to find listening TCP ports
+    private func findListenPorts(forPID pid: Int) -> [Int] {
         let lsof = Process()
         lsof.launchPath = "/usr/sbin/lsof"
-        lsof.arguments = ["-iTCP", "-sTCP:LISTEN", "-P", "-n"]
+        lsof.arguments = ["-P", "-n", "-p", "\(pid)", "-iTCP", "-sTCP:LISTEN"]
         let pipe = Pipe()
         lsof.standardOutput = pipe
         lsof.standardError = FileHandle.nullDevice
-        guard (try? lsof.run()) != nil else { return [:] }
+        guard (try? lsof.run()) != nil else { return [] }
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         lsof.waitUntilExit()
-        guard let output = String(data: data, encoding: .utf8) else { return [:] }
+        guard let output = String(data: data, encoding: .utf8) else { return [] }
 
-        // Parse: "language_ 1298 klai 4u IPv4 ... TCP 127.0.0.1:49574 (LISTEN)"
-        // Fields: COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME
-        var result: [Int: [Int]] = [:]
+        var ports: [Int] = []
         for line in output.components(separatedBy: "\n") {
-            guard line.contains("language_"), line.contains("LISTEN") else { continue }
-
-            // Extract PID (second field)
-            let fields = line.split(separator: " ", omittingEmptySubsequences: true)
-            guard fields.count >= 9, let pid = Int(fields[1]) else { continue }
+            guard line.contains("LISTEN") else { continue }
 
             // Extract port from last meaningful field "127.0.0.1:PORT"
-            let nameField = String(fields[8]) // e.g. "127.0.0.1:49574"
+            let fields = line.split(separator: " ", omittingEmptySubsequences: true)
+            guard let nameField = fields.last else { continue }
+            
             if let colonIdx = nameField.lastIndex(of: ":") {
                 let portStr = String(nameField[nameField.index(after: colonIdx)...])
                 if let port = Int(portStr) {
-                    result[pid, default: []].append(port)
+                    ports.append(port)
                 }
             }
         }
-        return result
+        return ports
     }
 
     /// Lightweight HTTP check — send minimal request, expect any response
@@ -271,7 +282,7 @@ class AntigravityAPI: @unchecked Sendable {
         }.resume()
     }
 
-    private func parseQuota(_ parsed: CascadeUserStatus) -> QuotaData? {
+    func parseQuota(_ parsed: CascadeUserStatus) -> QuotaData? {
         let configs = parsed.userStatus.cascadeModelConfigData.clientModelConfigs
 
         let models: [ModelQuota] = configs.compactMap { config in
@@ -297,7 +308,7 @@ class AntigravityAPI: @unchecked Sendable {
         return QuotaData(models: models, timestamp: Date())
     }
 
-    private func formatTime(_ ms: Int) -> String {
+    func formatTime(_ ms: Int) -> String {
         if ms <= 0 { return "Ready" }
         let minutes = Int(ceil(Double(ms) / 60000))
         if minutes < 60 { return "\(minutes)m" }
