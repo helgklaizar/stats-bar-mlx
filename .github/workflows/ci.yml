@@ -1,0 +1,9 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Swift config and tests
+        run: swift test

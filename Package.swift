@@ -9,6 +9,11 @@ let package = Package(
             name: "AntigravityBar",
             path: "Sources/AntigravityBar",
             exclude: ["Resources"]
+        ),
+        .testTarget(
+            name: "AntigravityBarTests",
+            dependencies: ["AntigravityBar"],
+            path: "Tests/AntigravityBarTests"
         )
     ]
 )
