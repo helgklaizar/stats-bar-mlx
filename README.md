@@ -114,17 +114,6 @@ swift build
 │       └── AppIcon.icns             # App icon
 ```
 
-## 🛣 Roadmap
-
-| # | Task | Details |
-|---|------|--------|
-| 1 | **Adaptive polling** | Faster refresh when menu is open, slower in background (currently fixed 30s) |
-| 2 | **New model support** | Add quota rows & icons when Google Antigravity adds new models |
-| 3 | **Modern macOS APIs** | Audit and migrate deprecated AppKit APIs for macOS 14/15 |
-| 4 | **Daemon discovery stability** | Add timeout + retry logic when reading JSON from `~/.gemini/antigravity/daemon/` |
-| 5 | **Rename binary** | Rename `StellarBar` → `AntigravityBar` in `Package.swift` and `build-app.sh` |
-
-## 📄 License
 
 MIT — see [LICENSE](LICENSE)
 
