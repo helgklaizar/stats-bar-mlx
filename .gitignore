@@ -4,3 +4,24 @@
 *.xcodeproj/
 DerivedData/
 .DS_Store
+
+
+# Professional Cleanup Patterns
+.agent
+.agents
+.gemini
+.tasks
+GEMINI.md
+TODO.md
+TODO*.md
+arch-audit*.md
+docs/sprints
+.venv
+venv
+__pycache__
+node_modules
+coverage/
+dist/
+build/
+AntigravityStats.dmg
+github-oss/
