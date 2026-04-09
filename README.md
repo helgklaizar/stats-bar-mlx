@@ -17,108 +17,25 @@
 
 ---
 
-## ✨ Features
+## 🍏 The Mac AI Ecosystem
+This project is part of a large-scale initiative to build high-performance AI tools specifically for Apple Silicon developers. Check out our other open-source adaptations:
 
-| Feature | Description |
-|---------|-------------|
-| 📊 **Quota Indicators** | Flash, Pro, Claude — color-coded percentages |
-| ⏱ **Timer Circles** | Pie-fill showing time until your Google Antigravity quota resets |
-| 💾 **Cache Size** | Colored by thresholds to stop context bloat (🟢 <100MB, 🟡 <300MB, 🟠 <500MB, 🔴 >500MB) |
-| 🔌 **Quick Actions** | Rules, MCP servers, Allowlist, Restart Language Server, Reset Updater, Reload |
-| 🧹 **Cleanup** | Clear Brain & Code Tracker with confirmation |
-| 💬 **New Chat** | Launch an entirely fresh Google Antigravity chat from the menu |
-| 🧪 **Playground** | Open the playground directory |
-| 🚀 **Launch at Login** | Toggle auto-start transparently |
-| 🔴 **Offline Detection** | Shows "OFF" when the Google Antigravity daemon is not running |
+- [🍏 **LLM Env Selector**](https://github.com/helgklaizar/llm-env-selector) — The ultimate UI configurator.
+- [🌉 **CUDA2MLX Bridge**](https://github.com/helgklaizar/cuda2mlx-bridge) — Drop-in replacement for CUDA projects.
+- [🚀 **TurboQuant MLX**](https://github.com/helgklaizar/turboquant_mlx) — Extreme KV Cache Compression (1-3 bit).
+- [🔥 **MLX Flamegraph**](https://github.com/helgklaizar/mlx-flamegraph) — Energy UI profiler for neural networks.
+- [🧠 **APFS Vector Indexer**](https://github.com/helgklaizar/apfs-rag-indexer) — Native system RAG with zero battery drain.
+- [⚒️ **MLX Forge**](https://github.com/helgklaizar/mlx-forge) — Blazing-fast memory-efficient LLM Fine-Tuning.
+- [🔳 **MLX BitNet**](https://github.com/helgklaizar/mlx-bitnet) — Native Ternary (1.58-bit) Matrix Multiplication Kernels.
+- [👁️ **MLX OmniParser**](https://github.com/helgklaizar/mlx-omni-parser) — Blazing-fast visual GUI agent.
+- [⚡️ **MLX Flash Attention**](https://github.com/helgklaizar/mlx-flash-attention) — Native FA3 for Metal.
+- [🌿 **MLX SageAttention**](https://github.com/helgklaizar/mlx-sage-attention) — 5x faster quantized attention.
+- [🧬 **MLX Attention Matching**](https://github.com/helgklaizar/mlx-attention-matching) — 50x context compression.
+- [🚀 **MLX RocketKV**](https://github.com/helgklaizar/mlx-rocket-kv) — 400x extreme pruning.
+- [📡 **MLX KVTC**](https://github.com/helgklaizar/mlx-kvtc) — Transform coding for KV cache.
+- [🌌 **MLX AETHER**](https://github.com/helgklaizar/mlx-aether) — Geometric Sparse Attention.
+- [🌌 **MLX DeepSeek Engine**](https://github.com/helgklaizar/mlx-deepseek-engine) — Massive 671B model inference on Mac.
+- [🎞 **MLX Open-Sora**](https://github.com/helgklaizar/mlx-open-sora) — Text-to-Video generation pipeline.
+- [🗣 **MLX Moshi Voice**](https://github.com/helgklaizar/mlx-moshi-voice) — Realtime Voice-to-Voice agents.
+- [🎲 **MLX MCTS Batched RL**](https://github.com/helgklaizar/mlx-mcts-rl) — Highly parallel MCTS framework.
 
-## 📸 Preview
-
-**Menu Bar:**
-
-<img src="assets/screenshots/menubar.png" width="500" alt="Menu Bar">
-
-**Context Menu:**
-
-<img src="assets/screenshots/context-menu.png" width="350" alt="Context Menu">
-
-## 📥 Install
-
-### From Source
-
-```bash
-git clone https://github.com/helgklaizar/antigravity-stats.git
-cd antigravity-stats
-chmod +x build-app.sh
-./build-app.sh
-cp -r "Antigravity Stats.app" /Applications/
-```
-
-### Quick Run (Development)
-
-```bash
-swift build
-.build/debug/StellarBar
-```
-
-## 🔧 Requirements
-
-- **macOS 13.0+** (Ventura)
-- **Google Antigravity IDE** installed and running
-- **Swift 6.0+** toolchain (for building from source)
-
-## 🏗 Architecture
-
-```
-┌─────────────────────────────────────────────────┐
-│                 Menu Bar                         │
-│  77.6 MB  |  ◐ 100%  |  ◐ 100%  |  ◑ 40%      │
-└──────────────────┬──────────────────────────────┘
-                   │ click
-┌──────────────────▼──────────────────────────────┐
-│              Context Menu                        │
-│  ├─ Quota details (per AI model)                │
-│  ├─ New Chat / Playground                       │
-│  ├─ Rules / MCP / Allowlist                     │
-│  ├─ Restart Server / Reset Updater / Reload     │
-│  ├─ Clear Brain / Code Tracker                  │
-│  ├─ Launch at Login toggle                      │
-│  └─ Quit                                        │
-└──────────────────┬──────────────────────────────┘
-                   │
-┌──────────────────▼──────────────────────────────┐
-│          Google Antigravity API                  │
-│  ├─ Daemon discovery (~/.gemini/antigravity/)   │
-│  ├─ Connect/Protobuf quota fetch                │
-│  └─ Cache size calculation                      │
-└─────────────────────────────────────────────────┘
-```
-
-## 🔌 How It Works
-
-1. **Daemon Discovery** — reads JSON files from `~/.gemini/antigravity/daemon/` to find the active Language Server.
-2. **Quota Fetch** — sends a `GetUserStatus` request via Connect protocol to the local HTTP port.
-3. **Polling** — refreshes data every 30 seconds.
-4. **Cache Calculation** — sums `brain/` and `conversations/` directory sizes to monitor memory bloat.
-
-## 📁 Project Structure
-
-```
-├── Package.swift                    # Swift Package Manager manifest
-├── build-app.sh                     # .app bundle builder
-├── Sources/AntigravityStats/
-│   ├── main.swift                   # Entry point
-│   ├── AppDelegate.swift            # Menu bar UI & actions
-│   ├── AntigravityAPI.swift         # Daemon API & utilities
-│   └── Resources/
-│       ├── Info.plist               # App metadata
-│       └── AppIcon.icns             # App icon
-```
-
-
-MIT — see [LICENSE](LICENSE)
-
----
-
-<p align="center">
-  Made with ⚡ for the Google Antigravity community
-</p>
