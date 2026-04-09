@@ -25,3 +25,10 @@ dist/
 build/
 AntigravityStats.dmg
 github-oss/
+
+
+# Professional Cleanup Patterns
+coverage/
+dist/
+build/
+github-oss/
